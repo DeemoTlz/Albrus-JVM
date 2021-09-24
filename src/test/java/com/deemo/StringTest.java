@@ -55,8 +55,8 @@ public class StringTest {
         // 字面量，先在SCP中寻找是否有“于禁”，发现没有则创建“于禁”（或堆中创建“于禁”SCP中保存引用？）
         String s2 = "于禁";
         // intern() 方法想要将字符串“于禁”放置在SCP中，发现SCP中已经存在“于禁”，直接返回该引用
-        // System.out.println(s1.intern() == s2);
-        System.out.println(s1 == s2);
+        System.out.println(s1.intern() == s2); // 1
+        System.out.println(s1 == s2); // 0
 
         // 字面量“许”、“褚”将在SCP中创建，此时SCP中并未出现“许褚”
         // String s3 = new String("许")  + new String("褚");
@@ -66,35 +66,35 @@ public class StringTest {
         s3.intern();
         // 字面量，先在SCP中寻找是否有“许褚”，发现已存在，则返回该引用
         String s4 = "许褚";
-        System.out.println(s3 == s4);
+        System.out.println(s3 == s4); // 1
 
-        // String s = "典";
-        // String ss = s + "韦";
+        String s = "典";
+        String ss = s + "韦";
         String s5 = new String("典") + new String("韦");
         // String s5 = new StringBuilder("典").append("韦").toString();
-        System.out.println(s5.intern() == s5);
-        // System.out.println(s5 == ss.intern());
+        System.out.println(s5.intern() == s5); // 1
+        System.out.println(s5 == ss.intern()); // 1
 
         String s6 = "主公";
         String s7 = new StringBuilder("主").append("公").toString();
-        System.out.println(s7.intern() == s7);
-        System.out.println(s7.intern() == s6);
+        System.out.println(s7.intern() == s7); // 0
+        System.out.println(s7.intern() == s6); // 1
 
         String s8 = new String("阿斗");
         String s9 = new StringBuilder("阿").append("斗").toString();
-        System.out.println(s9.intern() == s8.intern());
-        System.out.println(s9.intern() == s9);
+        System.out.println(s9.intern() == s8.intern()); // 1
+        System.out.println(s9.intern() == s9); // 0
 
         String s10 = new String("左少");
-        System.out.println(s10.intern() == s10);
+        System.out.println(s10.intern() == s10); // 0
 
         String s11 = "夏";
         String s12 = new StringBuilder(s11).append("侯").toString();
-        System.out.println(s12.intern() == s12);
+        System.out.println(s12.intern() == s12); // 1
 
         // sun.misc.Version
         String s13 = new String("ja") + new String("va");
-        System.out.println(s13.intern() == s13);
+        System.out.println(s13.intern() == s13); // 0
     }
 
     @Test
