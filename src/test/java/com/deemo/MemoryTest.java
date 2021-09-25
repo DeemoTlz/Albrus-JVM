@@ -4,7 +4,9 @@ import net.sf.cglib.proxy.Enhancer;
 import net.sf.cglib.proxy.MethodInterceptor;
 import net.sf.cglib.proxy.MethodProxy;
 import org.junit.Test;
+import sun.misc.Unsafe;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.*;
 
@@ -156,6 +158,25 @@ public class MemoryTest {
         // 运行结果：JDK 8
         /**
          * java.lang.OutOfMemoryError: Metaspace
+         */
+    }
+
+    @Test
+    public void directMemoryTest() throws IllegalAccessException {
+        final int _1MB = 1024 * 1024;
+
+        Field unsafeField = Unsafe.class.getDeclaredFields()[0];
+        unsafeField.setAccessible(true);
+        Unsafe unsafe = (Unsafe) unsafeField.get(null);
+        while (true) {
+            unsafe.allocateMemory(_1MB);
+        }
+
+        // 运行结果
+        /**
+         * java.lang.OutOfMemoryError
+         * 	at sun.misc.Unsafe.allocateMemory(Native Method)
+         * 	at com.deemo.MemoryTest.directMemoryTest(MemoryTest.java:172)
          */
     }
 
