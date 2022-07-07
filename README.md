@@ -386,11 +386,11 @@ public void directMemoryTest() throws IllegalAccessException {
 
 ##### 2.2.2 可达性分析算法
 
-当前主流的商用程序语言（Java、C++）的内存管理子系统，都是引用可达性分析（）算法来判定对象是否存活的。这个算法的基本思路就是通过一系列称为“GC Roots”的根对象作为起始结果集，从这些节点开始，根据引用关系向下搜索，搜索过程所走过的路径被称为“引用链”（），如果某个对象到GC Roots之间没有任何引用链相连，或者用图论解释即GC Roots到某个对象不可达时，表示该对象已不可能再被使用了。
+当前主流的商用程序语言（Java、C++）的内存管理子系统，都是引用可达性分析（）算法来判定对象是否存活的。这个算法的基本思路就是通过一系列称为“**GC Roots**”的根对象作为起始结果集，从这些节点开始，根据引用关系向下搜索，搜索过程所走过的路径被称为“引用链”（），如果某个对象到GC Roots之间没有任何引用链相连，或者用图论解释即GC Roots到某个对象不可达时，表示该对象已不可能再被使用了。
 
 如图，object5、object 6和object 7虽然互有关联，但他们到GC Roots之间是不可达的，因此它们将被判定为可回收对象。![image-20210924151541424](images/image-20210924151541424.png)
 
-在Java体系中，固定可作为GC Roots的对象包括以下几种：
+**在Java体系中，固定可作为GC Roots的对象包括以下几种**：
 
 1. 在虚拟机栈（栈帧中的本地变量表）中引用的对象，譬如各个线程被调用的方法堆栈中使用到的参数、局部变量、临时变量等
 2. 在方法区中类静态属性引用的对象，例如Java类的引用类型静态变量
@@ -404,7 +404,7 @@ public void directMemoryTest() throws IllegalAccessException {
 
 ##### 2.2.3 再谈引用
 
-无论是使用引用计数算法判断对象的引用数量，还是通过可达性分析算法判断对象是否引用链可达，判断对象是否存活都跟“引用”离不开关系。在JDK 1.2版之前，Java里面的引用是很传统的定义： 如果reference类型的数据中存储的数值代表的是另外一块内存的起始地址，就称该reference数据是代表某块内存、某个对象的引用。这种定义在现在看来有些过于狭隘了，仅有“被用”与“未引用”两种状态，对于那些“食之无味、弃之可惜”的对象就显得有些无力了，譬如某些对象在垃圾收集过后内存仍然显得比较紧张时，就可以回收他们。
+无论是使用引用计数算法判断对象的引用数量，还是通过可达性分析算法判断对象是否引用链可达，判断对象是否存活都跟“引用”离不开关系。在JDK 1.2版之前，Java里面的引用是很传统的定义：如果reference类型的数据中存储的数值代表的是另外一块内存的起始地址，就称该reference数据是代表某块内存、某个对象的引用。这种定义在现在看来有些过于狭隘了，仅有“被用”与“未引用”两种状态，对于那些“食之无味、弃之可惜”的对象就显得有些无力了，譬如某些对象在垃圾收集过后内存仍然显得比较紧张时，就可以回收他们。
 
 在JDK1.2版本之后，Java对引用概念进行了扩充，将引用分为：强引用（Strongly Re-ference）、软引用（Soft Reference）、弱引用（Weak Reference）和虚引用（Phantom Reference）4种，引用强度依次减弱。
 
@@ -499,5 +499,200 @@ Java虚拟机**被允许**对满足上述三个条件的无用类进行回收，
 
 ### 第4章 调优案例分析与实战
 
+## 番外篇
 
+### 番一 JVM 参数
+
+#### 1.1 JVM 参数类型
+
+##### 1.1.1 标配参数
+
+`-version`
+
+`-help`
+
+`-showversion`：`-version` + `-help`
+
+##### 1.1.2 x参数（了解）
+
+`-Xint`：解释执行
+
+`-Xcomp`：第一次使用就编译成本地代码
+
+`-Xmixed`：混合模式
+
+![image-20220707195838502](images/image-20220707195838502.png)
+
+##### 1.1.3 ==xx参数==
+
+###### 1.1.3.1 Boolean 类型
+
+`-XX:+/- name`：+ 开启、- 关闭
+
+1. 是否打印 GC 收集细节
+
+   `-XX:-PrintGCDetails`
+
+   `-XX:+PrintGCDetails`
+
+2. 是否使用串行垃圾回收器
+
+   `-XX:-UseSerialGC`
+
+   `-XX:+UseSerialGC`
+
+3. ...
+
+###### 1.1.3.2 K-V 设值类型
+
+`-XX:key=value`
+
+1. `-XX:MetaspaceSize=128m`
+2. `-XX:MaxTenuringThreshold=15`：存活超过多少代后转移到老年区
+3. ...
+
+###### 1.1.3.3 jinfo 示例
+
+> ==查看、修改（调试）==当前运行的 Java 程序的配置参数信息。
+
+使用方式：
+
+```bash
+PS E:\Workspace\IntelliJ IDEA\Albrus-JVM> jinfo -h
+Usage:
+    jinfo [option] <pid>
+        (to connect to running process)
+    jinfo [option] <executable <core>
+        (to connect to a core file)
+    jinfo [option] [server_id@]<remote server IP or hostname>
+        (to connect to remote debug server)
+
+where <option> is one of:
+    -flag <name>         to print the value of the named VM flag
+    -flag [+|-]<name>    to enable or disable the named VM flag
+    -flag <name>=<value> to set the named VM flag to the given value
+    -flags               to print VM flags
+    -sysprops            to print Java system properties
+    <no option>          to print both of the above
+    -h | -help           to print this help message
+```
+
+- jinfo -flags pid
+- jinfo -flag PrintGCDetails pid
+- jinfo -flag MetaspaceSize pid
+- ...
+
+`java com.albrus.DeemoGC`：
+
+```bash
+PS E:\Workspace\IntelliJ IDEA\Albrus-JVM> jps -l
+14324 
+22676 org.jetbrains.jps.cmdline.Launcher
+32420 sun.tools.jps.Jps
+6388 org.jetbrains.idea.maven.server.RemoteMavenServer36
+19212 com.albrus.DeemoGC
+
+PS E:\Workspace\IntelliJ IDEA\Albrus-JVM> jinfo -flag PrintGCDetails 19212
+-XX:-PrintGCDetails
+PS E:\Workspace\IntelliJ IDEA\Albrus-JVM> 
+```
+
+`java -XX:+PrintGCDetails com.albrus.DeemoGC`：
+
+```bash
+PS E:\Workspace\IntelliJ IDEA\Albrus-JVM> jps -l                          
+14324 
+6388 org.jetbrains.idea.maven.server.RemoteMavenServer36
+9976 org.jetbrains.jps.cmdline.Launcher
+10988 com.albrus.DeemoGC
+24924 sun.tools.jps.Jps
+
+PS E:\Workspace\IntelliJ IDEA\Albrus-JVM> jinfo -flag PrintGCDetails 10988
+-XX:+PrintGCDetails
+PS E:\Workspace\IntelliJ IDEA\Albrus-JVM> 
+```
+
+###### 1.1.3.4 -Xms
+
+-> 等价于 `-XX:InitialHeapSize`。
+
+###### 1.1.3.5 -Xmx
+
+-> 等价于 `-XX:MaxHeapSize`。
+
+#### 1.2 查看 JVM 参数默认值
+
+##### 1.2.1 -XX:+PrintFlagsInitial
+
+> 主要查看 JVM 参数==初始==默认值。
+
+```bash
+PS E:\Workspace\IntelliJ IDEA\Albrus-JVM> java -XX:+PrintFlagsInitial
+[Global flags]
+     intx ActiveProcessorCount                      = -1                                  {product}
+    uintx AdaptiveSizeDecrementScaleFactor          = 4                                   {product}
+    uintx AdaptiveSizeMajorGCDecayTimeScale         = 10                                  {product}
+    uintx AdaptiveSizePausePolicy                   = 0                                   {product}
+    uintx AdaptiveSizePolicyCollectionCostMargin    = 50                                  {product}
+    ...
+```
+
+##### 1.2.2 -XX:+PrintFlagsFinal -verssion
+
+> 主要查看 JVM 参数修改后的参数值。
+
+```bash
+PS E:\Workspace\IntelliJ IDEA\Albrus-JVM> java -XX:+PrintFlagsFinal -verssion
+[Global flags]
+     intx ActiveProcessorCount                      = -1                                  {product}
+    uintx AdaptiveSizeDecrementScaleFactor          = 4                                   {product}
+    uintx AdaptiveSizeMajorGCDecayTimeScale         = 10                                  {product}
+    uintx AdaptiveSizePausePolicy                   = 0                                   {product}
+    uintx AdaptiveSizePolicyCollectionCostMargin    = 50                                  {product}
+    uintx AdaptiveSizePolicyInitializingSteps       = 20                                  {product}
+    uintx AdaptiveSizePolicyOutputInterval          = 0                                   {product}
+    uintx AdaptiveSizePolicyWeight                  = 10                                  {product}
+    uintx AdaptiveSizeThroughPutPolicy              = 0                                   {product}
+    ...
+    uintx MaxHeapSize                              := 4255121408                          {product}
+    ...
+```
+
+- `=`：JVM 出厂默认值
+- `:=`：在设备上对参数修改后的更新值
+
+##### 1.2.3 -XX:+PrintCommandLineFlags -verssion
+
+> 查看命令行默认参数。
+
+```bash
+PS E:\Workspace\IntelliJ IDEA\Albrus-JVM> java -XX:+PrintCommandLineFlags -verssion
+-XX:InitialHeapSize=265865728 -XX:MaxHeapSize=4253851648 -XX:+PrintCommandLineFlags -XX:+UseCompressedClassPointers -XX:+UseCompressedOops -XX:-UseLargePagesIndividualAllocation -XX:+UseParallelGC 
+```
+
+- ==`-XX:+UseParallelGC`==：默认垃圾回收器
+
+### 番二 JVM 常用基本配置参数
+
+#### 2.1 堆内存初始大小
+
+![image-20220707205718005](images/image-20220707205718005.png)
+
+```java
+public static void main(String[] args) {
+    // JVM 内存容量
+    long totalMemory = Runtime.getRuntime().totalMemory();
+    // JVM 允许使用的最大容量
+    long maxMemory = Runtime.getRuntime().maxMemory();
+
+    System.out.println("TOTAL_MEMORY(-Xms) = " + totalMemory + "(字节) " + (totalMemory / 1024 / 1024) + " MB");
+    System.out.println("MAX_MEMORY(-Xmx) = " + maxMemory + "(字节) " + (maxMemory / 1024 / 1024) + " MB");
+    
+    // TOTAL_MEMORY(-Xms) = 255328256(字节) 243 MB
+    // MAX_MEMORY(-Xmx) = 3782737920(字节) 3607 MB
+}
+```
+
+- `-Xms`：默认物理内存的 64 分之一
+- `-Xmx`：默认物理内存的 4 分之一
 
