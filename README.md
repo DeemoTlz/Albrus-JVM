@@ -501,6 +501,11 @@ Java虚拟机**被允许**对满足上述三个条件的无用类进行回收，
 
 ## 番外篇
 
+![image-20220709091304591](images/image-20220709091304591-16573291854901.png)
+
+- **新生代默认占堆内存 1/3，养老区占堆内存 2/3**
+- **新生代还可以细分为：Eden、From Survivor 和 To Survivor区，默认比例：Eden:S0:S1 = 8:1:1**
+
 ### 番一 JVM 参数
 
 #### 1.1 JVM 参数类型
@@ -548,7 +553,7 @@ Java虚拟机**被允许**对满足上述三个条件的无用类进行回收，
 `-XX:key=value`
 
 1. `-XX:MetaspaceSize=128m`
-2. `-XX:MaxTenuringThreshold=15`：存活超过多少代后转移到老年区
+2. `-XX:MaxTenuringThreshold=15`：设置垃圾最大年龄，存活超过多少代后转移到老年区
 3. ...
 
 ###### 1.1.3.3 jinfo 示例
@@ -611,14 +616,6 @@ PS E:\Workspace\IntelliJ IDEA\Albrus-JVM> jinfo -flag PrintGCDetails 10988
 -XX:+PrintGCDetails
 PS E:\Workspace\IntelliJ IDEA\Albrus-JVM> 
 ```
-
-###### 1.1.3.4 -Xms
-
--> 等价于 `-XX:InitialHeapSize`。
-
-###### 1.1.3.5 -Xmx
-
--> 等价于 `-XX:MaxHeapSize`。
 
 #### 1.2 查看 JVM 参数默认值
 
@@ -695,4 +692,338 @@ public static void main(String[] args) {
 
 - `-Xms`：默认物理内存的 64 分之一
 - `-Xmx`：默认物理内存的 4 分之一
+
+#### 2.2 常用参数
+
+##### 2.2.1 -Xms
+
+初始堆内存大小 -> 等价于 `-XX:InitialHeapSize`。
+
+##### 2.2.2 -Xmx
+
+最大堆内存大小 -> 等价于 `-XX:MaxHeapSize`。
+
+##### 2.2.3 -Xss
+
+> The default value depends on the platform.
+>
+> 平台不一样，默认值不一样，Linux/x64 下 默认为 1024k。
+
+设置单个线程栈大小，一般默认 512k~1024k。 -> 等价于 `-XX:ThreadStackSize`
+
+##### 2.2.4 -Xmn
+
+设置年轻代大小，一般不用修改。
+
+##### 2.2.5 -XX:MetaspaceSize
+
+设置元空间大小。
+
+> 元空间的本质和永久代类似，都是**==对 JVM 规范中方法区的实现==**。
+>
+> 元空间和永久代最大的区别在于：
+>
+> ==元空间不在虚拟机中，而是使用本地内存。==因此默认情况下，元空间的大小仅受**本地内存**限制。
+
+##### 2.2.6 -XX:+PrintGCDetails
+
+打印 GC 详细日志。
+
+```tex
+[GC (Allocation Failure) [PSYoungGen: 1525K->504K(2560K)] 1525K->656K(9728K), 0.0025594 secs] [Times: user=0.00 sys=0.00, real=0.00 secs] 
+[GC (Allocation Failure) [PSYoungGen: 504K->488K(2560K)] 656K->664K(9728K), 0.0044138 secs] [Times: user=0.00 sys=0.00, real=0.00 secs] 
+[Full GC (Allocation Failure) [PSYoungGen: 488K->0K(2560K)] [ParOldGen: 176K->588K(7168K)] 664K->588K(9728K), [Metaspace: 3113K->3113K(1056768K)], 0.0050178 secs] [Times: user=0.00 sys=0.00, real=0.01 secs] 
+[GC (Allocation Failure) [PSYoungGen: 0K->0K(2560K)] 588K->588K(9728K), 0.0007594 secs] [Times: user=0.00 sys=0.00, real=0.00 secs] 
+[Full GC (Allocation Failure) [PSYoungGen: 0K->0K(2560K)] [ParOldGen: 588K->571K(7168K)] 588K->571K(9728K), [Metaspace: 3113K->3113K(1056768K)], 0.0056512 secs] [Times: user=0.00 sys=0.00, real=0.01 secs] 
+Heap
+ PSYoungGen      total 2560K, used 121K [0x00000000ffd00000, 0x0000000100000000, 0x0000000100000000)
+  eden space 2048K, 5% used [0x00000000ffd00000,0x00000000ffd1e738,0x00000000fff00000)
+  from space 512K, 0% used [0x00000000fff00000,0x00000000fff00000,0x00000000fff80000)
+  to   space 512K, 0% used [0x00000000fff80000,0x00000000fff80000,0x0000000100000000)
+ ParOldGen       total 7168K, used 571K [0x00000000ff600000, 0x00000000ffd00000, 0x00000000ffd00000)
+  object space 7168K, 7% used [0x00000000ff600000,0x00000000ff68ede0,0x00000000ffd00000)
+ Metaspace       used 3205K, capacity 4496K, committed 4864K, reserved 1056768K
+  class space    used 347K, capacity 388K, committed 512K, reserved 1048576K
+Exception in thread "main" java.lang.OutOfMemoryError: Java heap space
+	at com.albrus.AlbrusGC.main(AlbrusGC.java:6)
+```
+
+- GC：![image-20220709090144489](images/image-20220709090144489.png)
+- Full GC 依次类推
+- ==公式：[名称: GC 前内存占用 -> GC 后内存占用（该区总内存占用）] [] GC 前堆内存占用 -> GC 后堆内存占用（堆总大小）==
+
+##### 2.2.7 -XX:SurvivorRatio
+
+设置新生代中 Eden 区空间比例。
+
+`-XX:SurvivorRatio=8`：Eden:S0:S1 = 8:1:1
+
+```tex
+// -XX:+PrintGCDetails
+Heap
+ PSYoungGen      total 2560K, used 1096K [0x00000000ffd00000, 0x0000000100000000, 0x0000000100000000)
+  eden space 2048K, 29% used [0x00000000ffd00000,0x00000000ffd96238,0x00000000fff00000)
+  from space 512K, 96% used [0x00000000fff00000,0x00000000fff7c040,0x00000000fff80000)
+  to   space 512K, 0% used [0x00000000fff80000,0x00000000fff80000,0x0000000100000000)
+ ParOldGen       total 7168K, used 468K [0x00000000ff600000, 0x00000000ffd00000, 0x00000000ffd00000)
+  object space 7168K, 6% used [0x00000000ff600000,0x00000000ff675010,0x00000000ffd00000)
+ Metaspace       used 3716K, capacity 4536K, committed 4864K, reserved 1056768K
+  class space    used 409K, capacity 428K, committed 512K, reserved 1048576K
+```
+
+##### 2.2.8 -XX:NewRatio
+
+甚至**新生代**和**老年代**在**堆**结构中的占比。
+
+`-XX:NewRatio=4`：新生代 1，老年代 4 -> 新生代占堆 1/5，老年代占堆 4/5 -> **NewRatio 就是老年代的所占份数，新生代总是1**
+
+##### 2.2.9 -XX:MaxTenuringThreshold
+
+> ==JDK 8 中，MaxTenuringThreshold must be between 0 and 15.==，默认值：15。
+
+设置垃圾最大年龄，存活超过多少代后转移到老年区。
+
+- 设置较小，适用于老年代对象较多的情况，效率比较高，因为减少了在 Survivor 的复制
+- 设置较大，年轻代对象会在 Survivor 区进行多次复制，增加年轻代存活时间，增加在年轻代即被回收的概率
+
+### 番三 引用
+
+![image-20220709095007348](images/image-20220709095007348.png)
+
+- `Reference`：强（默认）
+- `SoftReference`：软
+- `WeakReference`：弱
+- `PhantomReference`：虚
+- `ReferenceQueue`：引用队列
+
+#### 3.1 强引用
+
+`java.lang.ref.Reference`
+
+对于强引用的对象，就算出现 OOM 异常，也不会对该对象进行回收。因此，强引用是造成 Java 内存泄漏的主要原因之一。
+
+#### 3.2 软引用
+
+`java.lang.ref.SoftReference`
+
+对于软引用的对象，当系统内存不足时，将进行回收。例如：MyBatis 缓存就有用到软引用。
+
+```java
+/**
+ * 故意生成大对象并配置小内存
+ * -Xms5m -Xmx5m -XX:+PrintGCDetails
+ */
+private static void softReferenceMemoryNotEnough() {
+    Object o1 = new Object();
+    SoftReference<Object> softReference = new SoftReference<Object>(o1);
+    System.out.println("o1: " + o1);
+    System.out.println("softReference: " + softReference.get());
+
+    o1 = null;
+
+    try {
+        byte[] bytes = new byte[10 * 1024 * 1024];
+    } finally {
+        System.out.println("o1: " + o1);
+        System.out.println("softReference: " + softReference.get());
+    }
+}
+
+// 输出：
+/*
+o1: java.lang.Object@4554617c
+softReference: java.lang.Object@4554617c
+o1: null
+softReference: null
+*/
+```
+
+#### 3.3 弱引用
+
+`java.lang.ref.WeakReference`
+
+不管内存够不够，GC 一律回收。
+
+##### 3.3.1 ThreadLocal
+
+`ThreadLocal` 中的 `Entry` 是使用 `WeakReference`：`static class Entry extends WeakReference<ThreadLocal<?>> {...}`。
+
+那么这样做的好处呢？？
+
+在 `Thread` 篇提到过，JDK 在底层设计 `ThreadLocal` 时是将 `ThreadLocalMap` 作为 `Thread` 的一个属性：`ThreadLocal.ThreadLocalMap threadLocals` 来设计的，这样更符合 `ThreadLocal` 的存在理念，而且当 `Thread` 消亡时，`ThreadLocalMap` 也会被回收。
+
+那么 `Entry` 使用 `WeakReference` 的原因呢？
+
+```java
+static class ThreadLocalMap {
+    static class Entry extends WeakReference<ThreadLocal<?>> {
+        /** The value associated with this ThreadLocal. */
+        Object value;
+
+        Entry(ThreadLocal<?> k, Object v) {
+            super(k);
+            value = v;
+        }
+    }
+}
+```
+
+- `ThreadLocal<?> k` 被软引用，Value 是强引用
+
+  因此，`Entry` 软引用了 `ThreadLocal`，不管 `Entry` 是否存活，不影响 `ThreadLocal` 的生命周期。
+
+  注意，这里是一个循环引用关系：
+
+  - 当时线程创建 `ThreadLocal`
+  - `Thread` 引用 `ThreadLocal.ThreadLocalMap`
+  - `ThreadLocalMap` 引用 `Entry`
+  - `Entry` 软引用 `ThreadLocal`
+
+  **如果我即使在外面将 `ThreadLocal` 设置为 null 后（强引用消失），`ThreadLocal` 同样被 `Entry` 引用，如果不是软引用，`ThreadLocal` 不会被 GC，此时我们频繁的创建 `ThreadLocal` 对象，即使在栈中强引用消失，也会造成内存泄漏。**
+
+- 但是 Value 是强引用
+
+  因此，不清理掉 `Entry`，Value 会一直被强引用，造成内存泄漏，所以需要用完 `remove()`
+
+##### 3.3.2 WeakHashMap
+
+`java.util.WeakHashMap`
+
+当 Key 消亡时，对应的 K-V Entry **在 GC 后**会被自动移除：
+
+```java
+private static void weakHashMap() {
+    Map<Object, String> map = new WeakHashMap<>();
+    Object key = new Object();
+    map.put(key, "A");
+    System.out.println(map);
+
+    System.out.println("================ GC ================");
+
+    key = null;
+    System.gc();
+    System.out.println(map);
+}
+
+// 输出：
+/*
+{java.lang.Object@14ae5a5=A}
+================ GC ================
+{}
+*/
+```
+
+#### 3.4 虚引用
+
+虚引用，又叫幽灵引用，`java.lang.ref.PhantomReference`
+
+**形同虚设，虚引用不会决定对象的生命周期。**
+
+如果一个对象仅只有虚引用，那么它就和没有任何引用一样，在任何时候都可能被垃圾回收器回收，**它也不能单独使用，也不能通过它来访问对象，必须和引用队列（`ReferenceQueue`）联合使用**，参见 `WeakHashMap`。
+
+可以用来实现一些比 `finalization` 更灵活的回收操作。
+
+**虚引用的主要作用是跟踪对象被垃圾回收的状态。**换句话说，设置虚引用关联的唯一目的，就是在这个对象被回收的时候会收到一个系统通知用于善后处理。
+
+##### 3.4.1 ReferenceQueue
+
+```java
+public static void main(String[] args) {
+    Object o1 = new Object();
+    ReferenceQueue<Object> referenceQueue = new ReferenceQueue<>();
+    WeakReference<Object> weakReference = new WeakReference<>(o1, referenceQueue);
+    System.out.println("o1: " + o1);
+    System.out.println("weakReference: " + weakReference.get());
+    System.out.println("referenceQueue: " + referenceQueue.poll());
+
+    System.out.println("================ GC ================");
+    o1 = null;
+    System.gc();
+
+    System.out.println("o1: " + o1);
+    System.out.println("weakReference: " + weakReference.get());
+    System.out.println("referenceQueue: " + referenceQueue.poll());
+}
+
+// 输出：
+/*
+o1: java.lang.Object@677327b6
+weakReference: java.lang.Object@677327b6
+referenceQueue: null
+================ GC ================
+o1: null
+weakReference: null
+referenceQueue: java.lang.ref.WeakReference@14ae5a5
+*/
+```
+
+- `ReferenceQueue` 是用来配合使用的
+
+##### 3.4.2 PhantomReference
+
+```java
+public static void main(String[] args) {
+    Object o1 = new Object();
+    ReferenceQueue<Object> referenceQueue = new ReferenceQueue<>();
+    PhantomReference<Object> phantomReference = new PhantomReference<>(o1, referenceQueue);
+    System.out.println("o1: " + o1);
+    System.out.println("phantomReference: " + phantomReference.get());
+    System.out.println("referenceQueue: " + referenceQueue.poll());
+
+    System.out.println("================ GC ================");
+    o1 = null;
+    System.gc();
+
+    System.out.println("o1: " + o1);
+    System.out.println("phantomReference: " + phantomReference.get());
+    System.out.println("referenceQueue: " + referenceQueue.poll());
+}
+
+// 输出：
+/*
+o1: java.lang.Object@677327b6
+phantomReference: null
+referenceQueue: null
+================ GC ================
+o1: null
+phantomReference: null
+referenceQueue: java.lang.ref.PhantomReference@14ae5a5
+*/
+```
+
+- 无法通过虚引用获取对象
+
+- 当关联的引用队列有数据的时候，意味着堆内存中被引用的对象被回收
+
+  通过这种方式 JVM 允许我们在对象被销毁后做一些我们自己的事情
+
+- 可以用来实现一些比 `finalization` 更灵活的回收操作
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
