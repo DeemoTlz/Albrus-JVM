@@ -1,4 +1,4 @@
-package com.albrus;
+package com.albrus.gc;
 
 public class AlbrusGC {
 

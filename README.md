@@ -279,8 +279,8 @@ public void rcpTest() {
 
 ```java
 /**
- * -XX:PermSize=6M -XX:MaxPermSize=6M
- * -XX:MetaspaceSize=6M -XX:MaxMetaspaceSize=6M
+ * -XX:PermSize=10M -XX:MaxPermSize=10M
+ * -XX:MetaspaceSize=10M -XX:MaxMetaspaceSize=10M
  */
 @Test
 public void methodAreaTest() {
@@ -745,7 +745,7 @@ Heap
  Metaspace       used 3205K, capacity 4496K, committed 4864K, reserved 1056768K
   class space    used 347K, capacity 388K, committed 512K, reserved 1048576K
 Exception in thread "main" java.lang.OutOfMemoryError: Java heap space
-	at com.albrus.AlbrusGC.main(AlbrusGC.java:6)
+	at com.albrus.gc.AlbrusGC.main(AlbrusGC.java:6)
 ```
 
 - GC：![image-20220709090144489](images/image-20220709090144489.png)
@@ -786,7 +786,7 @@ Heap
 - 设置较小，适用于老年代对象较多的情况，效率比较高，因为减少了在 Survivor 的复制
 - 设置较大，年轻代对象会在 Survivor 区进行多次复制，增加年轻代存活时间，增加在年轻代即被回收的概率
 
-### 番三 引用
+### 番三 四大引用
 
 ![image-20220709095007348](images/image-20220709095007348.png)
 
@@ -999,9 +999,194 @@ referenceQueue: java.lang.ref.PhantomReference@14ae5a5
 
 - 可以用来实现一些比 `finalization` 更灵活的回收操作
 
+### 番四 OOM
 
+![image-20220709182316366](images/image-20220709182316366.png)
 
+#### 4.1 SOFE - StackOverFlowError
 
+递归调用。
+
+#### 4.2 OOM
+
+##### 4.2.1 Java heap space
+
+大内存对象。
+
+##### 4.2.2 GC overhead limit exceeded
+
+GC 回收时间过长：超过 98% 的时间用来做 GC 但回收了不到 2% 的堆内存。
+
+连续多次 GC 都只回收了不到 2% 的极端情况下才会抛出。如果不抛出异常，那么就会陷入频繁 GC 但效果极差且浪费 CPU 资源的恶性循环。
+
+```java
+/**
+ * -Xms10m -Xmx10m -XX:+PrintGCDetails
+ */
+public static void main(String[] args) {
+    int i = 0;
+    List<String> list = new ArrayList<>();
+
+    while (!Thread.currentThread().isInterrupted()) {
+        list.add(String.valueOf(i++).intern());
+    }
+}
+
+// 输出：
+/*
+...
+[Full GC (Ergonomics) [PSYoungGen: 2047K->2047K(2560K)] [ParOldGen: 7064K->7064K(7168K)] 9112K->9112K(9728K), [Metaspace: 3240K->3240K(1056768K)], 0.0306544 secs] [Times: user=0.08 sys=0.00, real=0.03 secs] 
+[Full GC (Ergonomics) [PSYoungGen: 2047K->2047K(2560K)] [ParOldGen: 7066K->7066K(7168K)] 9114K->9114K(9728K), [Metaspace: 3240K->3240K(1056768K)], 0.0326245 secs] [Times: user=0.11 sys=0.00, real=0.03 secs] 
+[Full GC (Ergonomics) [PSYoungGen: 2047K->2047K(2560K)] [ParOldGen: 7069K->7067K(7168K)] 9117K->9115K(9728K), [Metaspace: 3243K->3243K(1056768K)], 0.0285083 secs] [Times: user=0.08 sys=0.00, real=0.03 secs] 
+[Full GC (Ergonomics) [PSYoungGen: 2047K->2047K(2560K)] [ParOldGen: 7093K->7093K(7168K)] 9141K->9141K(9728K), [Metaspace: 3243K->3243K(1056768K)], 0.0320207 secs] [Times: user=0.11 sys=0.00, real=0.03 secs] 
+[Full GC (Ergonomics) [PSYoungGen: 2047K->2047K(2560K)] [ParOldGen: 7107K->7095K(7168K)] 9155K->9143K(9728K), [Metaspace: 3260K->3260K(1056768K)], 0.0335132 secs] [Times: user=0.17 sys=0.00, real=0.03 secs] 
+[Full GC (Ergonomics) [PSYoungGen: 2047K->0K(2560K)] [ParOldGen: 7128K->637K(7168K)] 9176K->637K(9728K), [Metaspace: 3310K->3310K(1056768K)], 0.0048576 secs] [Times: user=0.00 sys=0.00, real=0.00 secs] 
+Heap
+ PSYoungGen      total 2560K, used 76K [0x00000000ffd00000, 0x0000000100000000, 0x0000000100000000)
+  eden space 2048K, 3% used [0x00000000ffd00000,0x00000000ffd13350,0x00000000fff00000)
+  from space 512K, 0% used [0x00000000fff80000,0x00000000fff80000,0x0000000100000000)
+  to   space 512K, 0% used [0x00000000fff00000,0x00000000fff00000,0x00000000fff80000)
+ ParOldGen       total 7168K, used 637K [0x00000000ff600000, 0x00000000ffd00000, 0x00000000ffd00000)
+  object space 7168K, 8% used [0x00000000ff600000,0x00000000ff69f6c0,0x00000000ffd00000)
+ Metaspace       used 3351K, capacity 4496K, committed 4864K, reserved 1056768K
+  class space    used 360K, capacity 388K, committed 512K, reserved 1048576K
+Exception in thread "main" java.lang.OutOfMemoryError: GC overhead limit exceeded
+	at java.lang.Integer.toString(Integer.java:403)
+	at java.lang.String.valueOf(String.java:3099)
+	at com.albrus.gc.AlbrusOverHeadGC.main(AlbrusOverHeadGC.java:16)
+
+Process finished with exit code 1
+*/
+```
+
+##### 4.2.3 Direct buffer memory
+
+NIO 程序经常使用 `ByteBuffer` 来读取或者写入数据，这是一种基于通道（`Channel`）于缓冲区（`Buffer`）的 I/O 方式，它可以**使用 Native 函数库直接分配堆外内存**然后通过一个存储在 Java 堆里面的 `DirectByteBuffer` 对象作为这块内存的引用进行操作。这样**避免了在 Java 堆和 Native 堆中来回拷贝数据**，提高了性能。
+
+- `ByteBuffer.allocate(capacity)`
+
+  **在 JVM 堆内存**中分配，属于 GC 管辖范围，需要拷贝数据
+
+- `ByteBuffer.allocateDirect(capacity)`
+
+  **在 JVM 堆外**分配，不属于 GC 管辖范围，不需要拷贝数据
+
+如果**不断分配本地内存，堆内存占用很少**，那么 JVM 就不会执行 GC，而 DirectByteBuffer 也不会被回收。此时堆内存充足，但本地内存不足，就会产生 `java.lang.OutOfMemoryError: Direct buffer memory`：
+
+```java
+/**
+ * -Xms10m -Xmx10m -XX:MaxDirectMemorySize=5m
+ */
+public static void main(String[] args) {
+    System.out.println("Max Direct Memory Size: " + sun.misc.VM.maxDirectMemory() / 1024 / 1024 + "MB.");
+    
+    List<ByteBuffer> list = new ArrayList<>();
+    while (true) {
+        list.add(ByteBuffer.allocateDirect(1 * 1024 * 1024));
+    }
+}
+
+// 输出：
+/*
+Max Direct Memory Size: 5MB.
+Exception in thread "main" java.lang.OutOfMemoryError: Direct buffer memory
+	at java.nio.Bits.reserveMemory(Bits.java:694)
+	at java.nio.DirectByteBuffer.<init>(DirectByteBuffer.java:123)
+	at java.nio.ByteBuffer.allocateDirect(ByteBuffer.java:311)
+	at com.albrus.gc.AlbrusDirectBufferMemory.main(AlbrusDirectBufferMemory.java:15)
+*/
+```
+
+##### 4.2.4 unable to create new native thread
+
+`unable to create new native thread` 异常与**对应的平台有关**：
+
+- 应用程序创建了太多的线程，超过系统极限
+
+- 服务器不允许应用程序创建那么多的线程，Linux 系统默认允许单个进程可以创建 1024 个线程
+
+**解决方案：**
+
+- 应用程序是否有必要创建那么多线程
+- 调整服务器配置上限
+
+```java
+public static void main(String[] args) {
+    for (int i = 0; ; i++) {
+        new Thread(() -> {
+            try {
+                Thread.sleep(Integer.MAX_VALUE);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }, i + "").start();
+    }
+}
+// 输出：
+/*
+An unrecoverable stack overflow has occurred.
+#
+# A fatal error has been detected by the Java Runtime Environment:
+#
+#  EXCEPTION_STACK_OVERFLOW (0xc00000fd) at pc=0x0000000058094d37, pid=14028, tid=0x00000000000d9c74
+#
+# JRE version: Java(TM) SE Runtime Environment (8.0_191-b12) (build 1.8.0_191-b12)
+# Java VM: Java HotSpot(TM) 64-Bit Server VM (25.191-b12 mixed mode windows-amd64 compressed oops)
+# Problematic frame:
+# An unrecoverable stack overflow has occurred.
+[thread 892060 also had an error]
+VException in thread "main" java.lang.OutOfMemoryError: unable to create new native thread
+	at java.lang.Thread.start0(Native Method)
+	at java.lang.Thread.start(Thread.java:717)
+	at com.albrus.gc.AlbrusUnableCreateNativeThread.main(AlbrusUnableCreateNativeThread.java:13)
+
+Process finished with exit code -1073741571 (0xC00000FD)
+*/
+```
+
+##### 4.2.5 Metaspace
+
+JDK 8 中元空间取代了永久代，并且 Metaspace 并不在虚拟机内存中而是使用本地内存，被存储在叫做 Metaspace 的 native memory（class metadata(the virtual machines internal presentation of Java class)）。
+
+存放以下信息：
+
+- 虚拟机加载的类信息
+- 常量池
+- 静态变量
+- 即时编译后的代码
+
+```java
+/**
+ * -XX:MetaspaceSize=10M -XX:MaxMetaspaceSize=10M
+ */
+public static void main(String[] args) {
+    Enhancer enhancer = new Enhancer();
+    enhancer.setSuperclass(Object.class);
+    enhancer.setUseCache(false);
+    enhancer.setCallback((MethodInterceptor) (o, method, objects, methodProxy) -> methodProxy.invokeSuper(o, objects));
+
+    while (true) {
+        enhancer.create();
+    }
+}
+
+// 输出：
+/*
+Exception in thread "main" java.lang.OutOfMemoryError: Metaspace
+	at net.sf.cglib.core.AbstractClassGenerator.generate(AbstractClassGenerator.java:348)
+	at net.sf.cglib.proxy.Enhancer.generate(Enhancer.java:492)
+	at net.sf.cglib.core.AbstractClassGenerator$ClassLoaderData.get(AbstractClassGenerator.java:117)
+	at net.sf.cglib.core.AbstractClassGenerator.create(AbstractClassGenerator.java:294)
+	at net.sf.cglib.proxy.Enhancer.createHelper(Enhancer.java:480)
+	at net.sf.cglib.proxy.Enhancer.create(Enhancer.java:305)
+	at com.albrus.gc.AlbrusMetaspace.main(AlbrusMetaspace.java:21)
+*/
+```
+
+- JDK 7 中异常信息为：`java.lang.OutOfMemoryError: PermGen space`
+- ` -XX:MaxMetaspaceSize`：元空间最大值。默认是-1，即只受限于本地内存大小。
+- `-XX:MetaspaceSize`：元空间初始大小，以字节为单位，达到该值将触发垃圾收集进行类型卸载，同时收集器会对该值进行调整：如果释放了大量的空间，就适当降低该值；否则，再不超过 ` -XX:MaxMetaspaceSize` 的情况下（如果有设置），适当提高该值。
+- ` -XX:MiniMetaspaceFreeRatio`：在垃圾收集之后控制最小的元空间剩余容量的百分比，可减少因为元空间不足导致的垃圾收集频率。类型的还有 `-XX:Max-MetaspaceFreeRatio`，用于控制最大的元空间剩余容量的百分比。
 
 
 
