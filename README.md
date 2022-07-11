@@ -1823,23 +1823,27 @@ top 模式下，常用交互式命令：
    1. `printf '%x\n' pid`：快速得到 16 进制
    2. `jstack pid | grep 十六进制小写pid -A 50`：定位 + 前50行
 
+#### 5.4.4 Github
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+1. in 搜索
+   - keyword in:name
+   - keyword in:description
+   - keyword in:readme
+   - keyword in:name,description,readme
+2. stars/forks
+   - keyword stars:>=6666
+   - keyword forks:>6666
+   - keyword stars:6666..8888 forks:6666..8888
+3. awesome
+   - awesome keyword：一般用于收集学习、工具、书籍类相关的项目
+4. 高亮代码
+   - https://github.com/DeemoTlz/Albrus-JVM/blob/main/src/main/java/com/albrus/gc/AlbrusGC.java#L12
+   - https://github.com/DeemoTlz/Albrus-JVM/blob/main/src/main/java/com/albrus/gc/AlbrusGC.java#L16-L18
+5. T 搜索
+   - 在项目主页==按 t 进入==项目内搜索
+6. 地区大佬
+   - location:beijing
+   - language:java
+   - location:beijing language:java
 
 
